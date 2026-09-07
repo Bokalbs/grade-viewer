@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grade Viewer</title>
+<style>
+  :root {
+    --primary: #1e40af;
+    --primary-dark: #1e3a8a;
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --pass: #059669;
+    --fail: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 28px;
+  }
+  .card.wide { max-width: 640px; }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px;
+    color: var(--primary-dark);
+  }
+  p.subtitle {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 14px 0 6px;
+  }
+  input[type=text], input[type=password] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+  }
+  input:focus { border-color: var(--primary); }
+  button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: var(--primary-dark); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  #error {
+    color: var(--fail);
+    font-size: 0.85rem;
+    margin-top: 12px;
+    display: none;
+    text-align: center;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.95rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; }
+  .studentName { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+  .section { color: var(--muted); font-size: 0.85rem; margin-bottom: 6px;}
+  .grade-pass { color: var(--pass); font-weight: 700; }
+  .grade-fail { color: var(--fail); font-weight: 700; }
+  .termBlock {
+    margin-top: 22px;
+    padding-top: 4px;
+    border-top: 2px solid var(--border);
+  }
+  .termBlock:first-of-type { border-top: none; margin-top: 12px; }
+  .termTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-top: 18px;
+  }
+  .termUnavailable {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 8px 0;
+  }
+  .logout {
+    background: transparent;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    margin-top: 20px;
+  }
+  .logout:hover { background: #f3f4f6; color: var(--text); }
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="card" id="loginCard">
+  <h1>📊 Grade Viewer</h1>
+  <p class="subtitle">Enter your username and access code to view your grades.</p>
+  <label for="username">Username</label>
+  <input type="text" id="username" autocomplete="off" placeholder="e.g. juan.delacruz">
+  <label for="code">Access Code</label>
+  <input type="text" id="code" autocomplete="off" placeholder="6-digit code" maxlength="10">
+  <button id="loginBtn" onclick="login()">View My Grades</button>
+  <div id="error"></div>
+</div>
+
+<div class="card wide" id="gradesCard" style="display:none;">
+  <h1>📊 My Grades</h1>
+  <div class="studentName" id="outStudentName"></div>
+  <div class="section" id="outSection"></div>
+  <div id="termsContainer"></div>
+  <button class="logout" onclick="logout()">Log Out</button>
+</div>
+
+<script>
+  // ⬇️ PASTE your Apps Script Web App URL here (see setup guide)
+  const API_URL = "https://script.google.com/macros/s/AKfycby2cnKwWarz9BhFqp8pcFIZ_Clb_BrV1jaoQikwrdiWC2QTCFLsFOGXh_DS852edPsR/exec";
+  const PASSING_GRADE = 75; // adjust if your passing mark differs
+
+  async function login() {
+    const username = document.getElementById('username').value.trim();
+    const code = document.getElementById('code').value.trim();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('error');
+    err.style.display = 'none';
+
+    if (!username || !code) {
+      err.textContent = 'Please fill in both fields.';
+      err.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Checking...';
+
+    try {
+      const url = `${API_URL}?username=${encodeURIComponent(username)}&code=${encodeURIComponent(code)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.success) {
+        err.textContent = data.message || 'Invalid username or access code.';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'View My Grades';
+        return;
+      }
+
+      showGrades(data);
+    } catch (e) {
+      err.textContent = 'Could not connect. Check your internet connection.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'View My Grades';
+    }
+  }
+
+  function showGrades(data) {
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('gradesCard').style.display = 'block';
+    document.getElementById('outStudentName').textContent = data.studentName;
+    document.getElementById('outSection').textContent = data.section || '';
+
+    const container = document.getElementById('termsContainer');
+    container.innerHTML = '';
+
+    const termLabels = { Term1: 'Term 1', Term2: 'Term 2', Term3: 'Term 3' };
+
+    data.terms.forEach(term => {
+      const block = document.createElement('div');
+      block.className = 'termBlock';
+
+      const title = document.createElement('div');
+      title.className = 'termTitle';
+      title.textContent = termLabels[term.termName] || term.termName;
+      block.appendChild(title);
+
+      if (!term.available || term.subjects.length === 0) {
+        const msg = document.createElement('div');
+        msg.className = 'termUnavailable';
+        msg.textContent = 'Not yet available.';
+        block.appendChild(msg);
+      } else {
+        const table = document.createElement('table');
+        table.innerHTML = '<thead><tr><th>Subject</th><th>Grade</th></tr></thead>';
+        const tbody = document.createElement('tbody');
+        term.subjects.forEach(s => {
+          const tr = document.createElement('tr');
+          const gradeNum = parseFloat(s.grade);
+          const cls = !isNaN(gradeNum) ? (gradeNum >= PASSING_GRADE ? 'grade-pass' : 'grade-fail') : '';
+          tr.innerHTML = `<td>${s.subject}</td><td class="${cls}">${s.grade}</td>`;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        block.appendChild(table);
+      }
+
+      container.appendChild(block);
+    });
+  }
+
+  function logout() {
+    document.getElementById('gradesCard').style.display = 'none';
+    document.getElementById('loginCard').style.display = 'block';
+    document.getElementById('username').value = '';
+    document.getElementById('code').value = '';
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = 'View My Grades';
+  }
+
+  // Allow Enter key to submit
+  document.getElementById('code').addEventListener('keypress', e => {
+    if (e.key === 'Enter') login();
+  });
+</script>
+
+</body>
+</html>
