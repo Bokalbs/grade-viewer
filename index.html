@@ -111,12 +111,30 @@
     color: var(--primary-dark);
     margin-top: 18px;
   }
-  .termUnavailable {
-    color: var(--muted);
-    font-size: 0.85rem;
-    font-style: italic;
-    padding: 8px 0;
+  .termAverage {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
   }
+  .summaryBox {
+    margin-top: 24px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .summaryBox.ok {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+  .summaryBox.warn {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+  .summaryBox ul { margin: 6px 0 0; padding-left: 20px; }
   .logout {
     background: transparent;
     color: var(--muted);
@@ -155,6 +173,7 @@
   <div class="studentName" id="outStudentName"></div>
   <div class="section" id="outSection"></div>
   <div id="termsContainer"></div>
+  <div id="summaryBox"></div>
   <button class="logout" onclick="logout()">Log Out</button>
 </div>
 
@@ -211,6 +230,8 @@
     container.innerHTML = '';
 
     const termLabels = { Term1: 'Term 1', Term2: 'Term 2', Term3: 'Term 3' };
+    const failingBySubjectTerm = []; // { term, subject, grade }
+    let anyGradesFound = false;
 
     data.terms.forEach(term => {
       const block = document.createElement('div');
@@ -230,19 +251,62 @@
         const table = document.createElement('table');
         table.innerHTML = '<thead><tr><th>Subject</th><th>Grade</th></tr></thead>';
         const tbody = document.createElement('tbody');
+        const numericGrades = [];
+
         term.subjects.forEach(s => {
           const tr = document.createElement('tr');
           const gradeNum = parseFloat(s.grade);
-          const cls = !isNaN(gradeNum) ? (gradeNum >= PASSING_GRADE ? 'grade-pass' : 'grade-fail') : '';
+          const isNumeric = !isNaN(gradeNum);
+          const cls = isNumeric ? (gradeNum >= PASSING_GRADE ? 'grade-pass' : 'grade-fail') : '';
           tr.innerHTML = `<td>${s.subject}</td><td class="${cls}">${s.grade}</td>`;
           tbody.appendChild(tr);
+
+          if (isNumeric) {
+            numericGrades.push(gradeNum);
+            anyGradesFound = true;
+            if (gradeNum < PASSING_GRADE) {
+              failingBySubjectTerm.push({
+                term: termLabels[term.termName] || term.termName,
+                subject: s.subject,
+                grade: s.grade
+              });
+            }
+          }
         });
+
         table.appendChild(tbody);
         block.appendChild(table);
+
+        if (numericGrades.length > 0) {
+          const avg = numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length;
+          const avgDiv = document.createElement('div');
+          avgDiv.className = 'termAverage';
+          avgDiv.textContent = `General Average: ${avg.toFixed(2)}`;
+          block.appendChild(avgDiv);
+        }
       }
 
       container.appendChild(block);
     });
+
+    // Summary note at the bottom
+    const summaryBox = document.getElementById('summaryBox');
+    summaryBox.innerHTML = '';
+
+    if (anyGradesFound) {
+      const box = document.createElement('div');
+      if (failingBySubjectTerm.length === 0) {
+        box.className = 'summaryBox ok';
+        box.textContent = '✅ You are currently passing all subjects. Keep it up!';
+      } else {
+        box.className = 'summaryBox warn';
+        const list = failingBySubjectTerm
+          .map(f => `<li>${f.term} — ${f.subject}: ${f.grade}</li>`)
+          .join('');
+        box.innerHTML = `⚠️ You have a failing grade in the following:<ul>${list}</ul>Please see your subject teacher or adviser as soon as possible.`;
+      }
+      summaryBox.appendChild(box);
+    }
   }
 
   function logout() {
