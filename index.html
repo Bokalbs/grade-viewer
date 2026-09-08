@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grade Viewer SHS-NNHS 2026</title>
+<title>Grade Viewer</title>
 <style>
   :root {
     --primary: #1e40af;
@@ -41,6 +41,14 @@
     font-size: 1.4rem;
     margin: 0 0 4px;
     color: var(--primary-dark);
+  }
+  .schoolHeader {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
   }
   p.subtitle {
     margin: 0 0 24px;
@@ -112,10 +120,22 @@
     margin-top: 18px;
   }
   .termAverage {
-    margin-top: 8px;
+    margin: 8px 0 14px;
+    padding: 8px 12px;
+    background: #eef2ff;
+    border-radius: 8px;
     font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .termAverage span.label {
     font-weight: 600;
-    color: var(--text);
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
   }
   .summaryBox {
     margin-top: 24px;
@@ -158,6 +178,7 @@
 <body>
 
 <div class="card" id="loginCard">
+  <div class="schoolHeader">SHS-NNHS &middot; A.Y. 2026-2027</div>
   <h1>📊 Grade Viewer</h1>
   <p class="subtitle">Enter your username and access code to view your grades.</p>
   <label for="username">Username</label>
@@ -169,7 +190,8 @@
 </div>
 
 <div class="card wide" id="gradesCard" style="display:none;">
-  <h1>📊 My Grades | SHS-NNHS SY 2026-2027</h1>
+  <div class="schoolHeader">SHS-NNHS &middot; A.Y. 2026-2027</div>
+  <h1>📊 My Grades</h1>
   <div class="studentName" id="outStudentName"></div>
   <div class="section" id="outSection"></div>
   <div id="termsContainer"></div>
@@ -179,7 +201,7 @@
 
 <script>
   // ⬇️ PASTE your Apps Script Web App URL here (see setup guide)
-  const API_URL = "https://script.google.com/macros/s/AKfycby2cnKwWarz9BhFqp8pcFIZ_Clb_BrV1jaoQikwrdiWC2QTCFLsFOGXh_DS852edPsR/exec";
+  const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
   const PASSING_GRADE = 75; // adjust if your passing mark differs
 
   async function login() {
@@ -248,10 +270,24 @@
         msg.textContent = 'Not yet available.';
         block.appendChild(msg);
       } else {
+        const numericGrades = [];
+        term.subjects.forEach(s => {
+          const g = parseFloat(s.grade);
+          if (!isNaN(g)) numericGrades.push(g);
+        });
+
+        // General Average badge — placed right after the term title, before the subject list
+        if (numericGrades.length > 0) {
+          const avg = numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length;
+          const avgDiv = document.createElement('div');
+          avgDiv.className = 'termAverage';
+          avgDiv.innerHTML = `<span class="label">General Average</span><span>${avg.toFixed(2)}</span>`;
+          block.appendChild(avgDiv);
+        }
+
         const table = document.createElement('table');
         table.innerHTML = '<thead><tr><th>Subject</th><th>Grade</th></tr></thead>';
         const tbody = document.createElement('tbody');
-        const numericGrades = [];
 
         term.subjects.forEach(s => {
           const tr = document.createElement('tr');
@@ -262,7 +298,6 @@
           tbody.appendChild(tr);
 
           if (isNumeric) {
-            numericGrades.push(gradeNum);
             anyGradesFound = true;
             if (gradeNum < PASSING_GRADE) {
               failingBySubjectTerm.push({
@@ -276,14 +311,6 @@
 
         table.appendChild(tbody);
         block.appendChild(table);
-
-        if (numericGrades.length > 0) {
-          const avg = numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length;
-          const avgDiv = document.createElement('div');
-          avgDiv.className = 'termAverage';
-          avgDiv.textContent = `General Average: ${avg.toFixed(2)}`;
-          block.appendChild(avgDiv);
-        }
       }
 
       container.appendChild(block);
