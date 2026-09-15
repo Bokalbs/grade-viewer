@@ -11,6 +11,8 @@
   :root {
     --primary: #1e40af;
     --primary-dark: #1e3a8a;
+    --accent: #fbbf24;
+    --accent-dark: #d97706;
     --bg: #f4f6fb;
     --card: #ffffff;
     --text: #1f2937;
@@ -23,7 +25,7 @@
   body {
     margin: 0;
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    background: var(--bg);
+    background: linear-gradient(160deg, #eef2ff 0%, #f4f6fb 55%, #fffbeb 100%);
     color: var(--text);
     min-height: 100vh;
     display: flex;
@@ -34,6 +36,7 @@
   .card {
     background: var(--card);
     border-radius: 14px;
+    border-top: 5px solid var(--accent);
     box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     width: 100%;
     max-width: 420px;
@@ -50,7 +53,7 @@
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--accent-dark);
     margin: 0 0 10px;
   }
   p.subtitle {
@@ -121,12 +124,15 @@
     font-weight: 700;
     color: var(--primary-dark);
     margin-top: 18px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent);
   }
   .termAverage {
     margin: 8px 0 14px;
     padding: 8px 12px;
-    background: #eef2ff;
-    border-radius: 8px;
+    background: linear-gradient(90deg, #eef2ff, #fffbeb);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--primary-dark);
@@ -176,17 +182,21 @@
     width: 700px;
     background: #ffffff;
     padding: 40px;
+    border: 6px solid var(--primary);
+    outline: 3px solid var(--accent);
+    outline-offset: -14px;
     font-family: Georgia, 'Times New Roman', serif;
     color: #111827;
   }
-  .slipSchoolName { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 0; }
-  .slipDept { text-align: center; font-size: 1rem; margin: 2px 0 4px; }
-  .slipDivider { border: none; border-top: 2px solid #111827; margin: 14px 0; }
-  .slipTitle { text-align: center; font-size: 1.05rem; font-weight: 700; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; }
+  .slipSchoolName { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--primary-dark); }
+  .slipDept { text-align: center; font-size: 1rem; margin: 2px 0 4px; color: var(--accent-dark); font-weight: 600; }
+  .slipDivider { border: none; border-top: 3px solid var(--accent); margin: 14px 0; }
+  .slipTitle { text-align: center; font-size: 1.05rem; font-weight: 700; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); }
   .slipRow { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 6px; }
   .slipTable { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.95rem; }
-  .slipTable th, .slipTable td { border: 1px solid #111827; padding: 8px 10px; text-align: left; }
-  .slipAvg { text-align: right; font-weight: 700; font-size: 1rem; margin: 6px 0 40px; }
+  .slipTable th { background: var(--primary); color: #ffffff; border: 1px solid var(--primary-dark); padding: 8px 10px; text-align: left; }
+  .slipTable td { border: 1px solid #111827; padding: 8px 10px; text-align: left; }
+  .slipAvg { text-align: right; font-weight: 700; font-size: 1rem; margin: 6px 0 40px; color: var(--primary-dark); }
   .slipFooter { display: flex; flex-direction: column; align-items: flex-end; margin-top: 30px; }
   .slipSigText {
     font-family: 'Mrs Saint Delafield', cursive;
@@ -204,13 +214,16 @@
     width: 700px;
     background: #ffffff;
     padding: 40px;
+    border: 6px solid var(--primary);
+    outline: 3px solid var(--accent);
+    outline-offset: -14px;
     font-family: Georgia, 'Times New Roman', serif;
     color: #111827;
   }
   .fullSlipTermBlock { margin-top: 22px; }
   .fullSlipTermBlock:first-child { margin-top: 10px; }
-  .fullSlipTermTitle { font-size: 1rem; font-weight: 700; margin: 0 0 8px; border-bottom: 1.5px solid #111827; padding-bottom: 4px; }
-  .fullSlipTermAvg { text-align: right; font-weight: 700; font-size: 0.9rem; margin: 4px 0 0; }
+  .fullSlipTermTitle { font-size: 1rem; font-weight: 700; margin: 0 0 8px; color: var(--primary-dark); border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+  .fullSlipTermAvg { text-align: right; font-weight: 700; font-size: 0.9rem; margin: 4px 0 0; color: var(--primary-dark); }
   .logout {
     background: transparent;
     color: var(--muted);
