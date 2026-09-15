@@ -196,6 +196,21 @@
   }
   .slipSigLine { width: 220px; border-top: 1.5px solid #111827; padding-top: 4px; text-align: center; font-weight: 700; }
   .slipSigPosition { width: 220px; text-align: center; font-size: 0.85rem; color: #374151; }
+
+  #fullSlipTemplate {
+    position: fixed;
+    top: 0;
+    left: -9999px;
+    width: 700px;
+    background: #ffffff;
+    padding: 40px;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #111827;
+  }
+  .fullSlipTermBlock { margin-top: 22px; }
+  .fullSlipTermBlock:first-child { margin-top: 10px; }
+  .fullSlipTermTitle { font-size: 1rem; font-weight: 700; margin: 0 0 8px; border-bottom: 1.5px solid #111827; padding-bottom: 4px; }
+  .fullSlipTermAvg { text-align: right; font-weight: 700; font-size: 0.9rem; margin: 4px 0 0; }
   .logout {
     background: transparent;
     color: var(--muted);
@@ -237,6 +252,7 @@
   <div class="section" id="outSection"></div>
   <div id="termsContainer"></div>
   <div id="summaryBox"></div>
+  <button class="downloadBtn" id="fullReportBtn" onclick="downloadFullReport()" style="margin-top:16px;">⬇ Download Full Report (All Completed Terms)</button>
   <button class="logout" onclick="logout()">Log Out</button>
 </div>
 
@@ -260,6 +276,23 @@
   </div>
 </div>
 
+<!-- Hidden full-report template (all completed terms stacked), captured as one JPEG -->
+<div id="fullSlipTemplate">
+  <p class="slipSchoolName">Nabua National High School</p>
+  <p class="slipDept">Senior High School Department</p>
+  <hr class="slipDivider">
+  <p class="slipTitle">Official Report of Grades</p>
+  <div class="slipRow"><span><strong>Name:</strong> <span id="fullSlipStudentName"></span></span><span>A.Y. 2026-2027</span></div>
+  <div class="slipRow"><span><strong>Section:</strong> <span id="fullSlipSection"></span></span></div>
+  <div id="fullSlipTermsContainer"></div>
+  <p class="slipAvg" id="fullSlipOverallAvg"></p>
+  <div class="slipFooter">
+    <div class="slipSigText" id="fullSlipSigText"></div>
+    <div class="slipSigLine" id="fullSlipAdviserName">Adviser Full Name</div>
+    <div class="slipSigPosition" id="fullSlipAdviserPosition">Grade 12 Adviser</div>
+  </div>
+</div>
+
 <script>
   // ⬇️ PASTE your Apps Script Web App URL here (see setup guide)
   const API_URL = "https://script.google.com/macros/s/AKfycby2cnKwWarz9BhFqp8pcFIZ_Clb_BrV1jaoQikwrdiWC2QTCFLsFOGXh_DS852edPsR/exec";
@@ -268,7 +301,7 @@
   // ✏️ Edit these to match you — shown on the downloadable grade slip
   const ADVISER_NAME = "ROBERTO J. TIRAO JR.";
   const ADVISER_POSITION = "Adviser";
-  const SIGNATURE_TEXT = "JtRao"; // rendered in a script font as a stand-in signature
+  const SIGNATURE_TEXT = "Your Full Name Here"; // rendered in a script font as a stand-in signature
 
   let currentStudentData = null; // holds the logged-in student's full response, used for the grade slip
 
@@ -409,6 +442,10 @@
       }
       summaryBox.appendChild(box);
     }
+
+    const fullReportBtn = document.getElementById('fullReportBtn');
+    const hasCompletedTerm = data.terms.some(t => t.available && t.subjects.length > 0);
+    fullReportBtn.style.display = hasCompletedTerm ? 'block' : 'none';
   }
 
   async function downloadGradeSlip(termName, termLabel) {
@@ -447,6 +484,76 @@
     const link = document.createElement('a');
     const safeTerm = termLabel.replace(/\s+/g, '');
     link.download = `${currentStudentData.studentName.replace(/\s+/g, '_')}_${safeTerm}_GradeSlip.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+  }
+
+  async function downloadFullReport() {
+    if (!currentStudentData) return;
+    const termLabels = { Term1: 'Term 1', Term2: 'Term 2', Term3: 'Term 3' };
+    const completedTerms = currentStudentData.terms.filter(t => t.available && t.subjects.length > 0);
+
+    if (completedTerms.length === 0) return;
+
+    document.getElementById('fullSlipStudentName').textContent = currentStudentData.studentName;
+    document.getElementById('fullSlipSection').textContent = currentStudentData.section || '';
+    document.getElementById('fullSlipAdviserName').textContent = ADVISER_NAME;
+    document.getElementById('fullSlipAdviserPosition').textContent = ADVISER_POSITION;
+    document.getElementById('fullSlipSigText').textContent = SIGNATURE_TEXT;
+
+    const container = document.getElementById('fullSlipTermsContainer');
+    container.innerHTML = '';
+    const allTermAverages = [];
+
+    completedTerms.forEach(term => {
+      const block = document.createElement('div');
+      block.className = 'fullSlipTermBlock';
+
+      const title = document.createElement('p');
+      title.className = 'fullSlipTermTitle';
+      title.textContent = termLabels[term.termName] || term.termName;
+      block.appendChild(title);
+
+      const table = document.createElement('table');
+      table.className = 'slipTable';
+      table.innerHTML = '<thead><tr><th>Subject</th><th>Grade</th></tr></thead>';
+      const tbody = document.createElement('tbody');
+      const numericGrades = [];
+      term.subjects.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${s.subject}</td><td>${s.grade}</td>`;
+        tbody.appendChild(tr);
+        const g = parseFloat(s.grade);
+        if (!isNaN(g)) numericGrades.push(g);
+      });
+      table.appendChild(tbody);
+      block.appendChild(table);
+
+      if (numericGrades.length > 0) {
+        const avg = numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length;
+        allTermAverages.push(avg);
+        const avgP = document.createElement('p');
+        avgP.className = 'fullSlipTermAvg';
+        avgP.textContent = `General Average: ${avg.toFixed(2)}`;
+        block.appendChild(avgP);
+      }
+
+      container.appendChild(block);
+    });
+
+    const overallDiv = document.getElementById('fullSlipOverallAvg');
+    if (allTermAverages.length > 0) {
+      const overall = allTermAverages.reduce((a, b) => a + b, 0) / allTermAverages.length;
+      overallDiv.textContent = `Overall Average: ${overall.toFixed(2)}`;
+    } else {
+      overallDiv.textContent = '';
+    }
+
+    const template = document.getElementById('fullSlipTemplate');
+    await document.fonts.ready;
+    const canvas = await html2canvas(template, { scale: 2, backgroundColor: '#ffffff' });
+    const link = document.createElement('a');
+    link.download = `${currentStudentData.studentName.replace(/\s+/g, '_')}_FullReport.jpg`;
     link.href = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
   }
