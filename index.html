@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grade Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Mrs+Saint+Delafield&display=swap" rel="stylesheet">
 <style>
   :root {
     --primary: #1e40af;
@@ -155,6 +158,44 @@
     border: 1px solid #fecaca;
   }
   .summaryBox ul { margin: 6px 0 0; padding-left: 20px; }
+  .downloadBtn {
+    margin-top: 10px;
+    background: transparent;
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+    font-size: 0.85rem;
+    padding: 9px;
+  }
+  .downloadBtn:hover { background: #eef2ff; }
+
+  /* Grade slip template — rendered off-screen, captured as an image */
+  #slipTemplate {
+    position: fixed;
+    top: 0;
+    left: -9999px;
+    width: 700px;
+    background: #ffffff;
+    padding: 40px;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #111827;
+  }
+  .slipSchoolName { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 0; }
+  .slipDept { text-align: center; font-size: 1rem; margin: 2px 0 4px; }
+  .slipDivider { border: none; border-top: 2px solid #111827; margin: 14px 0; }
+  .slipTitle { text-align: center; font-size: 1.05rem; font-weight: 700; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; }
+  .slipRow { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 6px; }
+  .slipTable { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.95rem; }
+  .slipTable th, .slipTable td { border: 1px solid #111827; padding: 8px 10px; text-align: left; }
+  .slipAvg { text-align: right; font-weight: 700; font-size: 1rem; margin: 6px 0 40px; }
+  .slipFooter { display: flex; flex-direction: column; align-items: flex-end; margin-top: 30px; }
+  .slipSigText {
+    font-family: 'Mrs Saint Delafield', cursive;
+    font-size: 2.6rem;
+    color: #1e3a8a;
+    margin-bottom: -10px;
+  }
+  .slipSigLine { width: 220px; border-top: 1.5px solid #111827; padding-top: 4px; text-align: center; font-weight: 700; }
+  .slipSigPosition { width: 220px; text-align: center; font-size: 0.85rem; color: #374151; }
   .logout {
     background: transparent;
     color: var(--muted);
@@ -199,10 +240,37 @@
   <button class="logout" onclick="logout()">Log Out</button>
 </div>
 
+<!-- Hidden grade slip template, captured as JPEG on demand -->
+<div id="slipTemplate">
+  <p class="slipSchoolName">Nabua National High School</p>
+  <p class="slipDept">Senior High School Department</p>
+  <hr class="slipDivider">
+  <p class="slipTitle" id="slipTermTitle">Official Grade Slip — Term 1</p>
+  <div class="slipRow"><span><strong>Name:</strong> <span id="slipStudentName"></span></span><span>A.Y. 2026-2027</span></div>
+  <div class="slipRow"><span><strong>Section:</strong> <span id="slipSection"></span></span></div>
+  <table class="slipTable">
+    <thead><tr><th>Subject</th><th>Grade</th></tr></thead>
+    <tbody id="slipTableBody"></tbody>
+  </table>
+  <p class="slipAvg" id="slipAvg"></p>
+  <div class="slipFooter">
+    <div class="slipSigText" id="slipSigText"></div>
+    <div class="slipSigLine" id="slipAdviserName">Adviser Full Name</div>
+    <div class="slipSigPosition" id="slipAdviserPosition">Grade 12 Adviser</div>
+  </div>
+</div>
+
 <script>
   // ⬇️ PASTE your Apps Script Web App URL here (see setup guide)
-  const API_URL = "https://script.google.com/macros/s/AKfycby2cnKwWarz9BhFqp8pcFIZ_Clb_BrV1jaoQikwrdiWC2QTCFLsFOGXh_DS852edPsR/exec";
+  const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
   const PASSING_GRADE = 75; // adjust if your passing mark differs
+
+  // ✏️ Edit these to match you — shown on the downloadable grade slip
+  const ADVISER_NAME = "Your Full Name Here";
+  const ADVISER_POSITION = "Grade 12 Adviser";
+  const SIGNATURE_TEXT = "Your Full Name Here"; // rendered in a script font as a stand-in signature
+
+  let currentStudentData = null; // holds the logged-in student's full response, used for the grade slip
 
   async function login() {
     const username = document.getElementById('username').value.trim();
@@ -243,6 +311,7 @@
   }
 
   function showGrades(data) {
+    currentStudentData = data;
     document.getElementById('loginCard').style.display = 'none';
     document.getElementById('gradesCard').style.display = 'block';
     document.getElementById('outStudentName').textContent = data.studentName;
@@ -311,6 +380,12 @@
 
         table.appendChild(tbody);
         block.appendChild(table);
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'downloadBtn';
+        dlBtn.textContent = '⬇ Download Grade Slip';
+        dlBtn.onclick = () => downloadGradeSlip(term.termName, termLabels[term.termName] || term.termName);
+        block.appendChild(dlBtn);
       }
 
       container.appendChild(block);
@@ -334,6 +409,46 @@
       }
       summaryBox.appendChild(box);
     }
+  }
+
+  async function downloadGradeSlip(termName, termLabel) {
+    if (!currentStudentData) return;
+    const term = currentStudentData.terms.find(t => t.termName === termName);
+    if (!term || !term.available) return;
+
+    // Fill in the hidden template
+    document.getElementById('slipTermTitle').textContent = `Official Grade Slip — ${termLabel}`;
+    document.getElementById('slipStudentName').textContent = currentStudentData.studentName;
+    document.getElementById('slipSection').textContent = currentStudentData.section || '';
+    document.getElementById('slipAdviserName').textContent = ADVISER_NAME;
+    document.getElementById('slipAdviserPosition').textContent = ADVISER_POSITION;
+    document.getElementById('slipSigText').textContent = SIGNATURE_TEXT;
+
+    const tbody = document.getElementById('slipTableBody');
+    tbody.innerHTML = '';
+    const numericGrades = [];
+    term.subjects.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${s.subject}</td><td>${s.grade}</td>`;
+      tbody.appendChild(tr);
+      const g = parseFloat(s.grade);
+      if (!isNaN(g)) numericGrades.push(g);
+    });
+
+    const avgText = numericGrades.length > 0
+      ? `General Average: ${(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length).toFixed(2)}`
+      : '';
+    document.getElementById('slipAvg').textContent = avgText;
+
+    // Capture the template as an image and trigger download
+    const template = document.getElementById('slipTemplate');
+    await document.fonts.ready; // ensure the signature font is loaded before capturing
+    const canvas = await html2canvas(template, { scale: 2, backgroundColor: '#ffffff' });
+    const link = document.createElement('a');
+    const safeTerm = termLabel.replace(/\s+/g, '');
+    link.download = `${currentStudentData.studentName.replace(/\s+/g, '_')}_${safeTerm}_GradeSlip.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
   }
 
   function logout() {
